@@ -14,9 +14,12 @@ import pdfminer.layout
 import io
 import PyPDF2
 from reportlab.pdfgen import canvas
-import fitz
+#import fitz
 import tabula
+import numpy as np
 import pandas as pd
+import re
+
 
 
 app_slack = App(token=app_token)
@@ -115,6 +118,7 @@ def download_pdf(url, path):
         file.write(response.content)
 
 def pdf_to_html(pdf_path):
+
     print("GOGO")
    # try:
    #     text = extract_text(pdf_path)
@@ -124,7 +128,7 @@ def pdf_to_html(pdf_path):
    #    print(f"Error extracting text from PDF: {str(e)}")
    #    return None
    # Open a file-like object for writing the extracted textf
-    laout_parameter = pdfminer.layout.LAParams(boxes_flow=-1, detect_vertical=True,word_margin=2, char_margin=2.0, line_margin=100, line_overlap=0.1,  all_texts=True)
+    laout_parameter = pdfminer.layout.LAParams(boxes_flow=-1, detect_vertical=True,word_margin=2, char_margin=2.0, line_margin=0.1, line_overlap=0.1,  all_texts=True)
     output_file = io.BytesIO()
     # with open('output.html', 'w', encoding='utf-8') as output_file:
     # Extract text from the PDF and write it to the file-like object
@@ -139,6 +143,52 @@ def pdf_to_html(pdf_path):
 
 
 def draw_box_to_pdf(pdf_path):
+    def parse_arr_from_df_col(df_col):
+        data_list = df_col.tolist()
+        filtered_list = [str(word) for word in data_list if type(word) != type(0.0) or type(word) != type("0")]
+        return filtered_list
+    def makeup_string(target_str):
+        target_str = target_str.replace('\n', ', ')
+        target_str = target_str.replace('nan', "")
+        target_str = target_str.replace("r'(?<=\D)(?=\d{3}\b)'", "")
+        return target_str
+    def parse_meal_json_of_today(today_array):
+        seperator = r'\d\d\d'
+        array_splited = split_arr(today_arr, seperator)
+        return array_splited
+        meal_json = {
+            "breakfast":"", "lunch":"", "dinner":"", "easy_meal":""
+        }
+        
+        breakfast = array_splited[0]
+        array_splited = array_splited[1:]
+        meal_json['breakfast'] = makeup_string(breakfast)
+
+        easy_meal = array_splited[-1]
+        array_splited = array_splited[:-2]
+        meal_json['easy_meal'] = makeup_string(easy_meal)
+
+        dinner = array_splited[-1]
+        array_splited = array_splited[:-2]
+        meal_json['easy_meal'] = makeup_string(easy_meal)
+
+    def replace_separator(before, after, array):
+        new_list = [before if word == after else word for word in array]
+        return new_list
+    def replace_word_in_array(before, array):
+        replace_separator(before, "|", array)
+    def split_arr(array_to_splite, seperator):
+        text = '\n'.join(array_to_splite)
+        # sublists = text.split(seperator)
+        sublists = re.sub(seperator,"|", text)
+        sublists = sublists.split("|")
+        return text
+    def is_nan(target_str):
+        if(target_str[:-3] == "nan"):
+            return True
+        else:
+            return False
+
     # pdf_document = fitz.open(pdf_path)
 
     # # Create a new PDF document
@@ -170,7 +220,7 @@ def draw_box_to_pdf(pdf_path):
 	# "./gishiks/gishik_2023-10-2.pdf", 
 	# pages="all"
     # )
-    dfs = tabula.read_pdf("./gishiks/gishik_2023-10-2.pdf", pages="all", encoding='CP949')
+    dfs = tabula.read_pdf("./gishiks/gishik_2023-10-2.pdf", pages="all", encoding='utf-8')
     # print(f"Data Type :{type(dfs)}")
     # print(f"Data Length: {len(dfs)}")
     # for index, table in enumerate(dfs):
@@ -180,11 +230,17 @@ def draw_box_to_pdf(pdf_path):
     dataframes = []
     for table in dfs:
         df = pd.DataFrame(table)
+        # df = df.replace('NaN', np.nan)  # Replace 'NaN' with actual NaN values
+        # df = df.dropna(subset=df.columns)
         dataframes.append(df)
+    
     n = 6
     column_name = df.columns[n]
     column_data = df[column_name]
-    print(column_data)
+    today_arr = parse_arr_from_df_col(column_data)
+    today_meal_json = parse_meal_json_of_today(today_arr)
+    print(today_meal_json)
+        
 
 
 
@@ -268,5 +324,7 @@ def html():
 
 
 if __name__ == "__main__":
-    web.run(debug=True, port='5001')
+    draw_box_to_pdf('./gishiks/gishik_2023-10-2.pdf')
+    #web.run(debug=True, port='5001')
+    
     #SocketModeHandler(app_slack,app_token).start()
