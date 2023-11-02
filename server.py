@@ -1,27 +1,28 @@
-from flask import Flask, render_template, jsonify, redirect, url_for, request
+# from flask import Flask, render_template, jsonify, redirect, url_for, request
 import requests
-import time
+# import time
 from config import app_token, bot_token, channel_id, url
-from slack_bolt import App
-from slack_bolt.adapter.socket_mode import SocketModeHandler
-from slack_sdk import WebClient
+# from slack_bolt import App
+# from slack_bolt.adapter.socket_mode import SocketModeHandler
+# from slack_sdk import WebClient
 from bs4 import BeautifulSoup
 import datetime
 import json
-from pdfminer.high_level import extract_text
-from pdfminer.high_level import extract_text_to_fp
-import pdfminer.layout
-import io
-import PyPDF2
-from reportlab.pdfgen import canvas
-import fitz
+# from pdfminer.high_level import extract_text
+# from pdfminer.high_level import extract_text_to_fp
+# import pdfminer.layout
+# import io
+# import PyPDF2
+# from reportlab.pdfgen import canvas
+# import fitz
 import tabula
-import numpy as np
-import pandas as pd
+# import numpy as np
+# import pandas as pd
+import pandas
 import re
 
 
-app_slack = App(token=app_token)
+# app_slack = App(token=app_token)
 # slack_client = WebClient(token=bot_token)
 
 
@@ -44,14 +45,7 @@ class Shik_thisweek:
             return self.data
         else:
             return self.data[when]
-
-    def send_message_to_channel(self, message):
-        slack_client = WebClient(token=bot_token)
-        slack_client.chat_postMessage(
-            channel=channel_id,
-            text=message
-        )
-
+        
     def get_html_doc(self, where):
         target_url = url[where]
         res_html = requests.request(url=target_url, method='GET').content
@@ -197,7 +191,7 @@ class Gishik_thisweek(Shik_thisweek):
                          "Thursday", "Friday", "Saturday", "Sunday"]
             dfs = tabula.read_pdf(pdf_path,
                                   pages="all", encoding='utf-8', lattice=True)
-            dataframes = [pd.DataFrame(table) for table in dfs]
+            dataframes = [pandas.DataFrame(table) for table in dfs]
             merged_df = pd.concat(dataframes, axis=1)
             return merged_df
 
@@ -337,63 +331,39 @@ def program_init():
     gishik_week_instance.update_me()
     hakshik_week_instance = Hakshik_thisweek()
     hakshik_week_instance.update_me()
+    return str({"hak": hakshik_week_instance.get_shik(when="all"), "gi":
+        gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")})
 
 
-@app_slack.event("message")
-def got_message(client, body):
-    text = body.get('event').get('text')
-    print(text)
-
-    if (text == "안녕"):
-        send_message_to_channel("응 안녕")
-    elif (text == '오늘 학식'):
-        today_hakshik = str(get_hakshik_of('student'))
-        send_message_to_channel(today_hakshik)
-    elif (text == '오늘 교식'):
-        today_hakshik = str(get_hakshik_of('professor'))
-        send_message_to_channel(today_hakshik)
-    elif (text == '오늘 기식'):
-        today_gishik = get_gishik_pdf()
-        send_message_to_channel(today_gishik)
 
 
-@app_slack.event("channel_created")
-def channel_created(client, body):
-    # Get information about the channel
-    channel_id = body["event"]["channel"]["id"]
-    channel_name = body["event"]["channel"]["name"]
-
-    # Send a welcome message
-    send_message_to_channel(f"Thanks for inviting me to #{channel_name}!")
+# web = Flask(__name__)
+# web.config['JSON_AS_ASCII'] = False
 
 
-web = Flask(__name__)
-web.config['JSON_AS_ASCII'] = False
-
-
-@web.get('/init')
-def init():
-    program_init()
-    return "Good"
-
-
-@web.get('/get')
-def get_week():
-    where = request.args.get('where')
-    data = "ERROR"
-    if (where == "hak"):
-        data = hakshik_week_instance.get_shik(when="all")
-    elif (where == "gi"):
-        data = gishik_week_instance.get_shik(when="all")
-    elif (where == "gyo"):
-        data = gyoshik_week_instance.get_shik(when="all")
-    else:
-        print(hakshik_week_instance.get_shik(when="all"))
-        data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
-                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
-    data = str(data)
-    return data
-
-
-if __name__ == "__main__":
-    web.run("0.0.0.0", port=5000, debug=False)
+#@web.get('/init')
+#def init():
+#    program_init()
+#    return "Good"
+#
+#
+#@web.get('/get')
+#def get_week():
+#    where = request.args.get('where')
+#    data = "ERROR"
+#    if (where == "hak"):
+#        data = hakshik_week_instance.get_shik(when="all")
+#    elif (where == "gi"):
+#        data = gishik_week_instance.get_shik(when="all")
+#    elif (where == "gyo"):
+#        data = gyoshik_week_instance.get_shik(when="all")
+#    else:
+#        print(hakshik_week_instance.get_shik(when="all"))
+#        data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
+#                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
+#    data = str(data)
+#    return data
+#
+#
+#if __name__ == "__main__":
+#    web.run("0.0.0.0", port=5000, debug=False)
