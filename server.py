@@ -1,11 +1,11 @@
-# from flask import Flask, render_template, jsonify, redirect, url_for, request
+from flask import Flask, render_template, jsonify, redirect, url_for, request
 import requests
 # import time
 from config import app_token, bot_token, channel_id, url
 # from slack_bolt import App
 # from slack_bolt.adapter.socket_mode import SocketModeHandler
 # from slack_sdk import WebClient
-from bs4 import BeautifulSoup
+import bs4
 import datetime
 import json
 # from pdfminer.high_level import extract_text
@@ -18,9 +18,9 @@ import json
 import tabula
 # import numpy as np
 # import pandas as pd
-import pandas
+import pandas as pd
 import re
-
+# C:\Users\dudal\OneDrive\바탕 화면 1\today_hakshik\modules_for_hakshikking_update\python
 
 # app_slack = App(token=app_token)
 # slack_client = WebClient(token=bot_token)
@@ -45,7 +45,7 @@ class Shik_thisweek:
             return self.data
         else:
             return self.data[when]
-        
+
     def get_html_doc(self, where):
         target_url = url[where]
         res_html = requests.request(url=target_url, method='GET').content
@@ -75,14 +75,14 @@ class Gishik_thisweek(Shik_thisweek):
                 file.write(response.content)
 
         html = self.get_html_doc('dormitory')
-        soup = BeautifulSoup(html, "html.parser", from_encoding='utf-8')
+        soup = bs4.BeautifulSoup(html, "html.parser", from_encoding='utf-8')
         this_week_page = soup.find('a', class_='artclLinkView')
         query = this_week_page['href']
         url = f'https://dorm.inha.ac.kr/{query}'
 
         pdfpage_html = requests.request(url=url, method='GET').content
-        soup = BeautifulSoup(pdfpage_html,  "html.parser",
-                             from_encoding='utf-8')
+        soup = bs4.BeautifulSoup(pdfpage_html,  "html.parser",
+                                 from_encoding='utf-8')
         pdf_url = soup.select_one(
             "body > div > div.artclItem.viewForm > dl > dd > ul > li:nth-child(1) > a")['href']
         url = f'https://dorm.inha.ac.kr/{pdf_url}'
@@ -191,7 +191,7 @@ class Gishik_thisweek(Shik_thisweek):
                          "Thursday", "Friday", "Saturday", "Sunday"]
             dfs = tabula.read_pdf(pdf_path,
                                   pages="all", encoding='utf-8', lattice=True)
-            dataframes = [pandas.DataFrame(table) for table in dfs]
+            dataframes = [pd.DataFrame(table) for table in dfs]
             merged_df = pd.concat(dataframes, axis=1)
             return merged_df
 
@@ -276,8 +276,8 @@ class Hakshik_thisweek(Shik_thisweek):
 
         def parse_menu_json(when, html_doc):
             meal_idx = parse_meal_idx(when, where, weekday)
-            soup = BeautifulSoup(html_doc, "html.parser",
-                                 from_encoding='utf-8')
+            soup = bs4.BeautifulSoup(html_doc, "html.parser",
+                                     from_encoding='utf-8')
             menu_html = soup.find_all("table")[meal_idx].find_all('tr')
 
             menu_json_list = []
@@ -332,38 +332,36 @@ def program_init():
     hakshik_week_instance = Hakshik_thisweek()
     hakshik_week_instance.update_me()
     return str({"hak": hakshik_week_instance.get_shik(when="all"), "gi":
-        gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")})
+                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")})
 
 
+web = Flask(__name__)
+web.config['JSON_AS_ASCII'] = False
 
 
-# web = Flask(__name__)
-# web.config['JSON_AS_ASCII'] = False
+@web.get('/init')
+def init():
+    program_init()
+    return "Good"
 
 
-#@web.get('/init')
-#def init():
-#    program_init()
-#    return "Good"
-#
-#
-#@web.get('/get')
-#def get_week():
-#    where = request.args.get('where')
-#    data = "ERROR"
-#    if (where == "hak"):
-#        data = hakshik_week_instance.get_shik(when="all")
-#    elif (where == "gi"):
-#        data = gishik_week_instance.get_shik(when="all")
-#    elif (where == "gyo"):
-#        data = gyoshik_week_instance.get_shik(when="all")
-#    else:
-#        print(hakshik_week_instance.get_shik(when="all"))
-#        data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
-#                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
-#    data = str(data)
-#    return data
-#
-#
-#if __name__ == "__main__":
-#    web.run("0.0.0.0", port=5000, debug=False)
+@web.get('/get')
+def get_week():
+    where = request.args.get('where')
+    data = "ERROR"
+    if (where == "hak"):
+        data = hakshik_week_instance.get_shik(when="all")
+    elif (where == "gi"):
+        data = gishik_week_instance.get_shik(when="all")
+    elif (where == "gyo"):
+        data = gyoshik_week_instance.get_shik(when="all")
+    else:
+        print(hakshik_week_instance.get_shik(when="all"))
+        data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
+                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
+    data = str(data)
+    return data
+
+
+if __name__ == "__main__":
+    web.run("0.0.0.0", port=5000, debug=False)
