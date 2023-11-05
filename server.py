@@ -7,6 +7,7 @@ from config import app_token, bot_token, channel_id, url
 # from slack_sdk import WebClient
 import bs4
 import datetime
+from pytz import timezone
 import json
 # from pdfminer.high_level import extract_text
 # from pdfminer.high_level import extract_text_to_fp
@@ -107,6 +108,9 @@ class Gishik_thisweek(Shik_thisweek):
             target_str = target_str.replace('요청', "")
             target_str = target_str.replace('NEW', "")
             target_str = target_str.replace("r'(?<=\D)(?=\d{3}\b)'", "")
+            target_str = target_str.replace("self 라면", "")
+            target_str = target_str.replace("라면/밥/김치", "")
+            target_str = target_str.replace("한 식 ", "한식\n")
             return target_str
 
         def replace_separator(before, after, array):
@@ -331,8 +335,47 @@ def program_init():
     gishik_week_instance.update_me()
     hakshik_week_instance = Hakshik_thisweek()
     hakshik_week_instance.update_me()
-    return str({"hak": hakshik_week_instance.get_shik(when="all"), "gi":
-                gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")})
+
+    updated_json = get_week()
+    return parse_json_to_message_week(updated_json)
+
+
+def this_weekday():
+    return datetime.datetime.now(timezone('Asia/Seoul')).strftime("%A")
+
+
+def today():
+    return datetime.datetime.now(timezone('Asia/Seoul')).strftime("%Y년 %m월 %d일")
+
+
+def parse_json_to_message(json_data, today_of_week):
+    today_hak = json_data['hak'].get(today_of_week)
+    today_gyo = json_data['gyo'].get(today_of_week)
+    today_gi = json_data['gi'].get(today_of_week)
+
+    if (today_hak != ''):
+        hak_message = f'*학생식당*\n\n✨ 조식 ✨\n{today_hak["breakfast"]}\n\n☀ 중식 ☀\n{today_hak["lunch"]}\n\n🌙 석식 🌙\n{today_hak["dinner"]}\n\n\n'
+    else:
+        hak_message = f'*학생식당*\n식사를 제공하지 않는 날입니다.\n'
+    if (today_gyo != ''):
+        today_gyo = today_gyo.get('breakfast').replace("\t\t", "").split('\n')
+        today_gyo = [item for item in today_gyo if item != ""]
+        gyo_message = f'*교직원식당*\n\n✨ 조식 ✨\n{today_gyo[0]}\n{today_gyo[1]}\n\n☀ 중식 ☀\n{today_gyo[2]}\n(백반)\n{today_gyo[3]}\n\n(특식)\n{today_gyo[5]}\n\n\n🌙 석식 🌙\n{today_gyo[6]}\n{today_gyo[7]}\n\n\n'
+    else:
+        gyo_message = f'*교직원식당*\n식사를 제공하지 않는 날입니다.\n'
+    if (today_gi != ''):
+        gi_message = f'*생활관식당*\n\n✨ 조식 ✨\n{today_gi["breakfast"]}\n\n☀ 중식 ☀\n{today_gi["lunch"]}\n\n🌙 석식 🌙\n{today_gi["dinner"]}\n\n🌭 간편식 🌭\n{today_gi["easy_meal"]}\n\n\n'
+    else:
+        gi_message = f'*생활관식당*\n식사를 제공하지 않는 날입니다.\n'
+    return f'✉ 학식왕 김인하 - {today()} 식단 ✉\n\n\n{hak_message}\n{gyo_message}\n{gi_message}식사 맛있게 하세요!'
+
+
+def parse_json_to_message_week(json_data):
+    week_message = []
+    for today_of_week in ["blank", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+        today_message = parse_json_to_message(json_data, today_of_week)
+        week_message.append(today_message)
+    return '\n--------------\n'.join(week_message)
 
 
 web = Flask(__name__)
@@ -356,7 +399,6 @@ def get_week():
     elif (where == "gyo"):
         data = gyoshik_week_instance.get_shik(when="all")
     else:
-        print(hakshik_week_instance.get_shik(when="all"))
         data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
                 gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
     data = str(data)
