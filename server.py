@@ -341,8 +341,8 @@ web.config['JSON_AS_ASCII'] = False
 
 @web.get('/init')
 def init():
-    program_init()
-    return "Good"
+    res = program_init()
+    return res
 
 
 @web.get('/get')
