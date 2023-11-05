@@ -336,6 +336,8 @@ def program_init():
     hakshik_week_instance = Hakshik_thisweek()
     hakshik_week_instance.update_me()
 
+    print("GOGO")
+
     updated_json = get_week()
     return parse_json_to_message_week(updated_json)
 
@@ -349,6 +351,8 @@ def today():
 
 
 def parse_json_to_message(json_data, today_of_week):
+    json_data = json_data.replace("'", '"')
+    json_data = json.loads(json_data)
     today_hak = json_data['hak'].get(today_of_week)
     today_gyo = json_data['gyo'].get(today_of_week)
     today_gi = json_data['gi'].get(today_of_week)
@@ -372,14 +376,19 @@ def parse_json_to_message(json_data, today_of_week):
 
 def parse_json_to_message_week(json_data):
     week_message = []
-    for today_of_week in ["blank", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
+    for today_of_week in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
         today_message = parse_json_to_message(json_data, today_of_week)
         week_message.append(today_message)
-    return '\n--------------\n'.join(week_message)
+    return '\n\n\n\n--------------\n\n\n\n'.join(week_message)
 
 
 web = Flask(__name__)
 web.config['JSON_AS_ASCII'] = False
+
+
+@web.get('/')
+def index():
+    return "GOGO"
 
 
 @web.get('/init')
@@ -401,6 +410,7 @@ def get_week():
     else:
         data = {"hak": hakshik_week_instance.get_shik(when="all"), "gi":
                 gishik_week_instance.get_shik(when="all"), "gyo": gyoshik_week_instance.get_shik(when="all")}
+        # data = get_week()
     data = str(data)
     return data
 
